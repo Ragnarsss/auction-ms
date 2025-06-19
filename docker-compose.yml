@@ -1,0 +1,30 @@
+services:
+  auction_database:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: auction_user
+      POSTGRES_PASSWORD: auction_password
+      POSTGRES_DB: auction_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - auction_data:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: auction_password
+    ports:
+      - "5050:80"
+    depends_on:
+      - auction_database
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  auction_data:
+  pgadmin_data:
+
+networks:
+  default:
+    driver: bridge

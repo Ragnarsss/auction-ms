@@ -1,0 +1,33 @@
+# Ignora la carpeta de compilación de Rust
+/target
+**/target/
+
+# Archivos de entorno y configuración sensible
+.env
+*.env
+
+# Archivos de log y temporales
+*.log
+*.tmp
+*.bak
+*.old
+*.swp
+*.swo
+*.orig
+*.rej
+*.temp
+
+# Configuración de IDEs y editores
+.vscode/
+.idea/
+*.code-workspace
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de dependencias (opcional para binarios y workspaces)
+Cargo.lock
+
+# Otros archivos temporales
+/tmp/

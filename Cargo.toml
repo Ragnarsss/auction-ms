@@ -1,0 +1,19 @@
+[package]
+name = "auction_ms"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4"
+actix-rt = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+sea-orm = { version = "1.1.12", features = ["sqlx-postgres", "runtime-tokio-native-tls"] }
+sea-orm-migration = "1.1.12"
+dotenvy = "0.15"
+uuid = {version = "1.17.0", features = ["v4"]}
+chrono = "0.4.41"
+rust_decimal = "1.37.2"
+cargo-watch = "8.5.3"
+env_logger = "0.11"
