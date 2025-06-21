@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-actix-web = "4"
-actix-rt = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -15,5 +13,14 @@ dotenvy = "0.15"
 uuid = {version = "1.17.0", features = ["v4"]}
 chrono = "0.4.41"
 rust_decimal = "1.37.2"
-cargo-watch = "8.5.3"
 env_logger = "0.11"
+validator = "0.16"
+validator_derive = "0.16"
+tonic = "0.11"
+prost = "0.12"
+prost-types = "0.12"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+

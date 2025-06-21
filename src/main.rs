@@ -1,24 +1,11 @@
-use actix_web::{App, HttpServer};
-use dotenvy::dotenv;
-
-mod routes;
-mod db;
-mod handlers;
-mod models;
+mod grpc_server;
 mod config;
-use routes::auctions::auctions_routes;
+mod models;
+mod db;
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    dotenv().ok();
-    let db = crate::db::connect().await;
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(actix_web::web::Data::new(db.clone()))
-            .configure(auctions_routes)
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    config::init();
+    grpc_server::start_grpc_server().await?;
+    Ok(())
 }

@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package auction;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Mensaje para una subasta
+message Auction {
+  string id = 1;
+  string user_id = 2;
+  string item_id = 3;
+  string title = 4;
+  string description = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  string base_price = 8;         // Usar string para decimales
+  string min_bid_increment = 9;  // Usar string para decimales
+  string highest_bid = 10;       // Usar string para decimales, puede ser vacío
+  string status = 11;
+}
+
+// Crear subasta 
+message CreateAuctionRequest {
+  string user_id = 1;
+  string item_id = 2;
+  string title = 3;
+  string description = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  string base_price = 7;
+  string min_bid_increment = 8;
+  string status = 9;
+}
+
+message CreateAuctionResponse {
+  Auction auction = 1;
+}
+
+// Actualizar subasta
+message UpdateAuctionRequest {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  google.protobuf.Timestamp start_time = 4;
+  google.protobuf.Timestamp end_time = 5;
+  string base_price = 6;
+  string min_bid_increment = 7;
+  string highest_bid = 8;
+  string status = 9;
+}
+
+message UpdateAuctionResponse {
+  Auction auction = 1;
+}
+
+// Obtener subasta por ID
+message GetAuctionRequest {
+  string id = 1;
+}
+
+message GetAuctionResponse {
+  Auction auction = 1;
+}
+
+// Listar subastas
+message ListAuctionsRequest {}
+
+message ListAuctionsResponse {
+  repeated Auction auctions = 1;
+}
+
+// Eliminar subasta
+message DeleteAuctionRequest {
+  string id = 1;
+}
+
+message Empty {}
+
+service AuctionService {
+  rpc CreateAuction(CreateAuctionRequest) returns (CreateAuctionResponse);
+  rpc UpdateAuction(UpdateAuctionRequest) returns (UpdateAuctionResponse);
+  rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse);
+  rpc ListAuctions(ListAuctionsRequest) returns (ListAuctionsResponse);
+  rpc DeleteAuction(DeleteAuctionRequest) returns (Empty);
+}
