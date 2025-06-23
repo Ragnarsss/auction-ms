@@ -1,4 +1,4 @@
-# Guía de Migración y Despliegue - Auction Microservice
+# Guía de Migración y Despliegue - Auction Microservice (Rust) - Windows
 
 ## Tabla de Contenidos
 
@@ -16,102 +16,151 @@
 
 ### Software Requerido
 
-- **Go** >= 1.19
-- **PostgreSQL** >= 13
-- **Docker** >= 20.10
-- **Docker Compose** >= 2.0
-- **Protocol Buffers Compiler** (protoc)
-- **Git**
+- **Rust** >= 1.70 (con Cargo)
+- **PostgreSQL** >= 13 para Windows
+- **Docker Desktop** para Windows
+- **Protocol Buffers Compiler** (protoc) para Windows
+- **Git** para Windows
+- **Windows Terminal** o **PowerShell 7+** (recomendado)
 
-### Go Dependencies
+### Instalación de Rust en Windows
 
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```powershell
+# Opción 1: Usando rustup (recomendado)
+# Descargar e instalar desde https://rustup.rs/
+# O ejecutar en PowerShell:
+Invoke-WebRequest -Uri "https://win.rustup.rs/" -OutFile "rustup-init.exe"
+.\rustup-init.exe
+
+# Verificar instalación
+rustc --version
+cargo --version
+```
+
+### Dependencias del Sistema Windows
+
+```powershell
+# Instalar chocolatey (gestor de paquetes para Windows)
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Instalar dependencias usando chocolatey
+choco install git
+choco install docker-desktop
+choco install protoc
+
+# Alternativamente, instalar manualmente:
+# - Git: https://git-scm.com/download/win
+# - Docker Desktop: https://www.docker.com/products/docker-desktop
+# - Protocol Buffers: https://github.com/protocolbuffers/protobuf/releases
+```
+
+### Configuración de Visual Studio Build Tools
+
+```powershell
+# Instalar Visual Studio Build Tools (necesario para compilar Rust en Windows)
+choco install visualstudio2022buildtools
+
+# O descargar desde:
+# https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+# Asegurarse de instalar:
+# - MSVC v143 - VS 2022 C++ x64/x86 build tools
+# - Windows 10/11 SDK
 ```
 
 ## Preparación del Entorno
 
 ### 1. Clonar y Configurar el Proyecto
 
-```bash
+```powershell
 # Clonar el repositorio
 git clone <repository-url>
 cd auction_ms
 
 # Instalar dependencias
-go mod tidy
+cargo build
 
-# Generar código Protocol Buffers
-protoc --go_out=. --go-grpc_out=. proto/auction.proto
+# Generar código Protocol Buffers (se hace automáticamente con build.rs)
+cargo build
 ```
 
 ### 2. Variables de Entorno
 
-Crear archivo `.env` en la raíz del proyecto:
+Crear archivo `.env` en la raíz del proyecto usando PowerShell:
 
-```env
+```powershell
+# Crear archivo .env
+@"
 # Base de datos
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=auction_db
-DB_USER=auction_user
-DB_PASSWORD=auction_password
-DB_SSL_MODE=disable
+DATABASE_URL=postgres://auction_user:auction_password@localhost:5432/auction_db
 
-# Servidor
-SERVER_PORT=8080
-GRPC_PORT=50051
+# Servidor gRPC
+GRPC_ADDRESS=0.0.0.0:50052
 
 # Configuración de aplicación
-LOG_LEVEL=info
+RUST_LOG=info
 ENVIRONMENT=development
+"@ | Out-File -FilePath ".env" -Encoding UTF8
+```
 
-# JWT (si se usa autenticación)
-JWT_SECRET=your-jwt-secret-key
+### 3. Configuración de Windows Defender y Firewall
 
-# Redis (si se usa para caché)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+```powershell
+# Crear excepción en Windows Defender para la carpeta del proyecto (ejecutar como Administrador)
+Add-MpPreference -ExclusionPath "C:\Users\zunig\OneDrive\Documentos\UCN\1-2025 ULTIMO SEMESTRE CTMMM\Arquitectura de sistemas\ev2\auction_ms"
+
+# Abrir puertos en el firewall de Windows
+New-NetFirewallRule -DisplayName "Auction Service gRPC" -Direction Inbound -Protocol TCP -LocalPort 50052
+New-NetFirewallRule -DisplayName "PostgreSQL" -Direction Inbound -Protocol TCP -LocalPort 5432
+New-NetFirewallRule -DisplayName "pgAdmin" -Direction Inbound -Protocol TCP -LocalPort 5050
 ```
 
 ## Migración de Base de Datos
 
-### 1. Configuración de PostgreSQL
+### 1. Configuración de PostgreSQL en Windows
 
-#### Opción A: Instalación Local
+#### Opción A: Usando Docker Desktop (Recomendado)
 
-```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install postgresql postgresql-contrib
+```powershell
+# Iniciar Docker Desktop
+# Verificar que Docker esté corriendo
+docker --version
 
-# CentOS/RHEL
-sudo yum install postgresql postgresql-server postgresql-contrib
-
-# Iniciar servicio
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
+# Levantar solo la base de datos y pgAdmin
+docker-compose up auction_database pgadmin -d
 ```
 
-#### Opción B: Docker
+#### Opción B: Instalación Nativa en Windows
 
-```bash
-docker run --name auction-postgres \
-  -e POSTGRES_DB=auction_db \
-  -e POSTGRES_USER=auction_user \
-  -e POSTGRES_PASSWORD=auction_password \
-  -p 5432:5432 \
-  -d postgres:13
+```powershell
+# Usando chocolatey
+choco install postgresql
+
+# O descargar desde: https://www.postgresql.org/download/windows/
+
+# Iniciar servicio PostgreSQL
+Start-Service postgresql-x64-13
+
+# Configurar para inicio automático
+Set-Service -Name postgresql-x64-13 -StartupType Automatic
 ```
 
-### 2. Crear Base de Datos y Usuario
+### 2. Crear Base de Datos y Usuario (Windows)
+
+```powershell
+# Conectar usando psql de Windows
+# Ajustar la ruta según tu instalación de PostgreSQL
+$env:PATH += ";C:\Program Files\PostgreSQL\13\bin"
+
+# Conectar como superusuario
+psql -U postgres -h localhost
+
+# En la consola de PostgreSQL:
+```
 
 ```sql
--- Conectar como superusuario
-sudo -u postgres psql
-
 -- Crear usuario y base de datos
 CREATE USER auction_user WITH PASSWORD 'auction_password';
 CREATE DATABASE auction_db OWNER auction_user;
@@ -124,223 +173,124 @@ GRANT ALL PRIVILEGES ON DATABASE auction_db TO auction_user;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 
-### 3. Schema de Base de Datos
+### 3. Ejecutar Migraciones en Windows
 
-```sql
--- Tabla de subastas
-CREATE TABLE auctions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id VARCHAR(255) NOT NULL,
-    item_id VARCHAR(255) NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    base_price DECIMAL(15,2) NOT NULL,
-    min_bid_increment DECIMAL(15,2) NOT NULL,
-    highest_bid DECIMAL(15,2) DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'active',
-    currency VARCHAR(3) DEFAULT 'USD',
-    category VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+```powershell
+# Instalar sea-orm-cli usando cargo
+cargo install sea-orm-cli
 
--- Tabla de pujas
-CREATE TABLE bids (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    auction_id UUID NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
-    user_id VARCHAR(255) NOT NULL,
-    amount DECIMAL(15,2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+# Verificar que esté en el PATH
+sea-orm-cli --version
 
--- Índices para optimizar consultas
-CREATE INDEX idx_auctions_user_id ON auctions(user_id);
-CREATE INDEX idx_auctions_status ON auctions(status);
-CREATE INDEX idx_auctions_end_time ON auctions(end_time);
-CREATE INDEX idx_bids_auction_id ON bids(auction_id);
-CREATE INDEX idx_bids_user_id ON bids(user_id);
-CREATE INDEX idx_bids_amount ON bids(amount DESC);
+# Ejecutar migraciones
+sea-orm-cli migrate up -d postgres://auction_user:auction_password@localhost:5432/auction_db
+```
 
--- Trigger para actualizar updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+### 4. Verificar Tablas Creadas
 
-CREATE TRIGGER update_auctions_updated_at BEFORE UPDATE
-    ON auctions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```powershell
+# Conectar a la base de datos
+psql -U auction_user -d auction_db -h localhost
+
+# En la consola de PostgreSQL:
+# \dt
+# \d auction
 ```
 
 ## Configuración de la Aplicación
 
-### 1. Estructura de Directorios
+### 1. Estructura de Directorios (Windows)
 
 ```
-auction_ms/
-├── cmd/
-│   └── server/
-│       └── main.go
-├── internal/
-│   ├── config/
-│   ├── handler/
-│   ├── repository/
-│   ├── service/
-│   └── models/
-├── proto/
+auction_ms\
+├── src\
+│   ├── main.rs
+│   ├── grpc_server.rs
+│   ├── config.rs
+│   ├── models.rs
+│   └── db.rs
+├── migration\
+│   └── src\
+│       └── m20250619_044136_create_auction_table.rs
+├── proto\
 │   └── auction.proto
-├── pkg/
-├── migrations/
-├── docker/
-├── .env
-├── docker-compose.yml
+├── Cargo.toml
+├── build.rs
 ├── Dockerfile
-└── Makefile
+├── docker-compose.yml
+└── .env
 ```
 
-### 2. Archivo Docker Compose
+### 2. Configuración Actual de Docker Compose
 
-Crear `docker-compose.yml`:
+El archivo `docker-compose.yml` ya está configurado con:
 
-```yaml
-version: "3.8"
+- PostgreSQL en puerto 5432
+- pgAdmin en puerto 5050
+- Aplicación Rust en puerto 50052
 
-services:
-  postgres:
-    image: postgres:13
-    environment:
-      POSTGRES_DB: auction_db
-      POSTGRES_USER: auction_user
-      POSTGRES_PASSWORD: auction_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
-    networks:
-      - auction-network
+### 3. Variables de Entorno por Ambiente
 
-  redis:
-    image: redis:6-alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - auction-network
+```bash
+# Desarrollo (.env)
+DATABASE_URL=postgres://auction_user:auction_password@localhost:5432/auction_db
+GRPC_ADDRESS=0.0.0.0:50052
+RUST_LOG=info
 
-  auction-service:
-    build: .
-    ports:
-      - "8080:8080"
-      - "50051:50051"
-    environment:
-      - DB_HOST=postgres
-      - REDIS_HOST=redis
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - auction-network
-    volumes:
-      - ./.env:/app/.env
-
-volumes:
-  postgres_data:
-
-networks:
-  auction-network:
-    driver: bridge
-```
-
-### 3. Dockerfile
-
-```dockerfile
-FROM golang:1.19-alpine AS builder
-
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o auction-service cmd/server/main.go
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-
-COPY --from=builder /app/auction-service .
-COPY --from=builder /app/.env .
-
-EXPOSE 8080 50051
-
-CMD ["./auction-service"]
+# Producción (.env.production)
+DATABASE_URL=postgres://auction_user:auction_password@auction_database:5432/auction_db
+GRPC_ADDRESS=0.0.0.0:50052
+RUST_LOG=warn
 ```
 
 ## Despliegue en Desarrollo
 
-### 1. Usando Docker Compose
+### 1. Usando Docker Compose (Recomendado)
 
 ```bash
-# Construir y levantar servicios
+# Construir y levantar todos los servicios
 docker-compose up --build -d
 
 # Verificar que los servicios estén corriendo
 docker-compose ps
 
-# Ver logs
-docker-compose logs auction-service
+# Ver logs de la aplicación
+docker-compose logs -f auction_ms
 ```
 
 ### 2. Desarrollo Local
 
 ```bash
 # Levantar solo la base de datos
-docker-compose up postgres redis -d
+docker-compose up auction_database -d
+
+# Ejecutar migraciones
+sea-orm-cli migrate up
 
 # Ejecutar la aplicación localmente
-go run cmd/server/main.go
+cargo run
 ```
 
-### 3. Makefile para Comandos Comunes
+### 3. Comandos Útiles
 
-Crear `Makefile`:
+```bash
+# Compilar en modo debug
+cargo build
 
-```makefile
-.PHONY: build run test proto clean docker-build docker-run
+# Compilar en modo release
+cargo build --release
 
-build:
-	go build -o bin/auction-service cmd/server/main.go
+# Ejecutar tests
+cargo test
 
-run:
-	go run cmd/server/main.go
+# Limpiar artifacts de compilación
+cargo clean
 
-test:
-	go test ./... -v
+# Verificar formato del código
+cargo fmt --check
 
-proto:
-	protoc --go_out=. --go-grpc_out=. proto/auction.proto
-
-clean:
-	rm -rf bin/
-
-docker-build:
-	docker-compose build
-
-docker-run:
-	docker-compose up -d
-
-docker-stop:
-	docker-compose down
-
-docker-logs:
-	docker-compose logs -f auction-service
-
-db-migrate:
-	docker-compose exec postgres psql -U auction_user -d auction_db -f /docker-entrypoint-initdb.d/schema.sql
+# Linting
+cargo clippy
 ```
 
 ## Despliegue en Producción
@@ -351,7 +301,7 @@ db-migrate:
 # Actualizar sistema
 sudo apt update && sudo apt upgrade -y
 
-# Instalar Docker
+# Instalar Docker y Docker Compose
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker $USER
@@ -361,57 +311,37 @@ sudo curl -L "https://github.com/docker/compose/releases/download/v2.10.2/docker
 sudo chmod +x /usr/local/bin/docker-compose
 ```
 
-### 2. Variables de Entorno de Producción
-
-Crear `.env.production`:
-
-```env
-DB_HOST=production-db-host
-DB_PORT=5432
-DB_NAME=auction_db_prod
-DB_USER=auction_user_prod
-DB_PASSWORD=strong-production-password
-DB_SSL_MODE=require
-
-SERVER_PORT=8080
-GRPC_PORT=50051
-
-LOG_LEVEL=warn
-ENVIRONMENT=production
-
-JWT_SECRET=very-strong-jwt-secret-for-production
-
-REDIS_HOST=production-redis-host
-REDIS_PORT=6379
-REDIS_PASSWORD=redis-production-password
-```
-
-### 3. Docker Compose para Producción
+### 2. Docker Compose para Producción
 
 Crear `docker-compose.prod.yml`:
 
 ```yaml
-version: "3.8"
-
 services:
-  auction-service:
-    build: .
-    ports:
-      - "8080:8080"
-      - "50051:50051"
+  auction_database:
+    image: postgres:latest
     environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+      POSTGRES_USER: auction_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: auction_db
+    volumes:
+      - auction_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - auction-network
-    volumes:
-      - ./.env.production:/app/.env
+
+  auction_ms:
+    build: .
+    depends_on:
+      - auction_database
+    environment:
+      DATABASE_URL: postgres://auction_user:${DB_PASSWORD}@auction_database:5432/auction_db
+      GRPC_ADDRESS: "0.0.0.0:50052"
+      RUST_LOG: "warn"
+    ports:
+      - "50052:50052"
+    restart: unless-stopped
+    networks:
+      - auction-network
 
   nginx:
     image: nginx:alpine
@@ -422,17 +352,20 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/nginx/ssl
     depends_on:
-      - auction-service
+      - auction_ms
     restart: unless-stopped
     networks:
       - auction-network
+
+volumes:
+  auction_data:
 
 networks:
   auction-network:
     driver: bridge
 ```
 
-### 4. Configuración de Nginx
+### 3. Configuración de Nginx para gRPC
 
 Crear `nginx.conf`:
 
@@ -442,29 +375,20 @@ events {
 }
 
 http {
-    upstream auction_backend {
-        server auction-service:8080;
+    upstream grpc_backend {
+        server auction_ms:50052;
     }
 
     server {
-        listen 80;
+        listen 80 http2;
         server_name your-domain.com;
-        return 301 https://$server_name$request_uri;
-    }
-
-    server {
-        listen 443 ssl http2;
-        server_name your-domain.com;
-
-        ssl_certificate /etc/nginx/ssl/cert.pem;
-        ssl_certificate_key /etc/nginx/ssl/key.pem;
 
         location / {
-            proxy_pass http://auction_backend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            grpc_pass grpc://grpc_backend;
+            grpc_set_header Host $host;
+            grpc_set_header X-Real-IP $remote_addr;
+            grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            grpc_set_header X-Forwarded-Proto $scheme;
         }
     }
 }
@@ -472,38 +396,50 @@ http {
 
 ## Verificación y Testing
 
-### 1. Health Check
+### 1. Health Check para gRPC
 
 ```bash
-# Verificar que el servicio responda
-curl http://localhost:8080/health
+# Instalar grpcurl para testing
+go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 
-# Verificar conexión gRPC
-grpcurl -plaintext localhost:50051 list
+# Listar servicios disponibles
+grpcurl -plaintext localhost:50052 list
+
+# Listar métodos del servicio
+grpcurl -plaintext localhost:50052 list auction.AuctionService
+
+# Test de conexión
+grpcurl -plaintext localhost:50052 auction.AuctionService/ListAuctions
 ```
 
-### 2. Tests de Integración
+### 2. Tests de la Aplicación
 
 ```bash
-# Ejecutar tests
-make test
+# Ejecutar todos los tests
+cargo test
 
-# Test de carga básico
-ab -n 1000 -c 10 http://localhost:8080/health
+# Ejecutar tests con output verbose
+cargo test -- --nocapture
+
+# Ejecutar tests específicos
+cargo test test_create_auction
 ```
 
 ### 3. Verificación de Base de Datos
 
 ```bash
-# Conectar a la base de datos
-docker-compose exec postgres psql -U auction_user -d auction_db
+# Conectar a la base de datos via Docker
+docker-compose exec auction_database psql -U auction_user -d auction_db
+
+# O usando pgAdmin en http://localhost:5050
+# Usuario: admin@admin.com
+# Password: auction_password
 
 # Verificar tablas
 \dt
 
-# Verificar datos de ejemplo
-SELECT COUNT(*) FROM auctions;
-SELECT COUNT(*) FROM bids;
+# Verificar estructura de auction
+\d auction
 ```
 
 ## Monitoreo y Logs
@@ -512,11 +448,167 @@ SELECT COUNT(*) FROM bids;
 
 ```bash
 # Ver logs en tiempo real
-docker-compose logs -f auction-service
+docker-compose logs -f auction_ms
 
-# Logs con filtro por nivel
-docker-compose logs auction-service | grep ERROR
+# Ver logs de la base de datos
+docker-compose logs -f auction_database
+
+# Logs con nivel específico
+RUST_LOG=debug cargo run
 ```
+
+### 2. Métricas de Sistema
+
+```bash
+# Uso de recursos de contenedores
+docker stats
+
+# Espacio en disco
+df -h
+
+# Memoria del sistema
+free -h
+
+# Conexiones activas a PostgreSQL
+docker-compose exec auction_database psql -U auction_user -d auction_db -c "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';"
+```
+
+## Troubleshooting
+
+### Problemas Comunes
+
+#### 1. Error de Compilación de Protobuf
+
+```bash
+# Verificar que protoc esté instalado
+protoc --version
+
+# Reinstalar protobuf compiler
+sudo apt install protobuf-compiler
+
+# Limpiar y recompilar
+cargo clean
+cargo build
+```
+
+#### 2. Error de Conexión a Base de Datos
+
+```bash
+# Verificar que PostgreSQL esté corriendo
+docker-compose ps auction_database
+
+# Verificar logs de PostgreSQL
+docker-compose logs auction_database
+
+# Probar conexión manual
+docker-compose exec auction_database psql -U auction_user -d auction_db
+```
+
+#### 3. Puerto en Uso
+
+```bash
+# Verificar qué proceso usa el puerto
+lsof -i :50052
+netstat -tulpn | grep :50052
+
+# Cambiar puerto en docker-compose.yml si es necesario
+```
+
+#### 4. Problemas de Migración
+
+```bash
+# Verificar estado de migraciones
+sea-orm-cli migrate status
+
+# Revertir última migración
+sea-orm-cli migrate down
+
+# Aplicar migraciones específicas
+sea-orm-cli migrate up -n 1
+```
+
+### Comandos de Emergencia
+
+```bash
+# Reinicio completo del sistema
+docker-compose down
+docker-compose up --build -d
+
+# Backup de base de datos
+docker-compose exec auction_database pg_dump -U auction_user auction_db > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restaurar backup
+docker-compose exec -T auction_database psql -U auction_user -d auction_db < backup.sql
+
+# Limpiar volúmenes de Docker
+docker-compose down -v
+docker volume prune
+
+# Reconstruir imagen sin cache
+docker-compose build --no-cache auction_ms
+```
+
+## Mantenimiento
+
+### 1. Actualización de la Aplicación
+
+```bash
+# Pull del código actualizado
+git pull origin main
+
+# Recompilar y desplegar
+docker-compose build auction_ms
+docker-compose up -d auction_ms
+```
+
+### 2. Backup Automatizado
+
+Crear script `backup.sh`:
+
+```bash
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+docker-compose exec auction_database pg_dump -U auction_user auction_db > backups/auction_db_$DATE.sql
+echo "Backup creado: backups/auction_db_$DATE.sql"
+```
+
+### 3. Actualización de Dependencias
+
+```bash
+# Actualizar Cargo.lock
+cargo update
+
+# Verificar dependencias desactualizadas
+cargo audit
+
+# Verificar vulnerabilidades de seguridad
+cargo audit --db ~/.cargo/advisory-db
+```
+
+### 4. Monitoreo de Performance
+
+```bash
+# Profiling de la aplicación
+cargo install flamegraph
+cargo flamegraph --bin auction_ms
+
+# Benchmarks
+cargo bench
+```
+
+---
+
+## Contacto y Soporte
+
+Para problemas adicionales, consultar:
+
+- Logs de aplicación: `docker-compose logs auction_ms`
+- pgAdmin: `http://localhost:5050`
+- Documentación de Sea-ORM: https://www.sea-ql.org/SeaORM/
+- Documentación de Tonic: https://github.com/hyperium/tonic
+  docker-compose logs auction-service | grep ERROR
+
+````
 
 ### 2. Métricas Básicas
 
@@ -529,7 +621,7 @@ df -h
 
 # Conexiones a base de datos
 docker-compose exec postgres psql -U auction_user -d auction_db -c "SELECT count(*) FROM pg_stat_activity;"
-```
+````
 
 ## Troubleshooting
 
