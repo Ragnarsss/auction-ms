@@ -3,7 +3,6 @@ syntax = "proto3";
 package auction;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 
 // Mensaje para una subasta
 message Auction {
@@ -18,6 +17,19 @@ message Auction {
   string min_bid_increment = 9;  // Usar string para decimales
   string highest_bid = 10;       // Usar string para decimales, puede ser vacío
   string status = 11;
+  string currency = 12;
+  repeated Bid bids = 13;
+  string category = 14;
+}
+
+// Mensaje para una puja
+message Bid {
+  string id = 1;
+  string auction_id = 2;
+  string user_id = 3;
+  string amount = 4;
+  google.protobuf.Timestamp created_at = 5;
+  string status = 6;
 }
 
 // Crear subasta 
@@ -30,11 +42,41 @@ message CreateAuctionRequest {
   google.protobuf.Timestamp end_time = 6;
   string base_price = 7;
   string min_bid_increment = 8;
-  string status = 9;
+  string highest_bid = 9;
+  string category = 10;
+  string currency = 11;
 }
 
 message CreateAuctionResponse {
   Auction auction = 1;
+}
+
+// Crear puja
+message CreateBidRequest {
+  string auction_id = 1;
+  string user_id = 2;
+  string amount = 3;
+}
+
+message CreateBidResponse {
+  Bid bid = 1;
+}
+
+message GetHighestBidRequest {
+  string auction_id = 1;
+}
+
+message GetHighestBidResponse {
+  Bid bid = 1;
+}
+
+// Listar pujas de una subasta
+message ListBidsRequest {
+  string auction_id = 1;
+}
+
+message ListBidsResponse {
+  repeated Bid bids = 1;
 }
 
 // Actualizar subasta
@@ -48,6 +90,8 @@ message UpdateAuctionRequest {
   string min_bid_increment = 7;
   string highest_bid = 8;
   string status = 9;
+  string category = 10;
+  string currency = 11;
 }
 
 message UpdateAuctionResponse {
@@ -83,4 +127,9 @@ service AuctionService {
   rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse);
   rpc ListAuctions(ListAuctionsRequest) returns (ListAuctionsResponse);
   rpc DeleteAuction(DeleteAuctionRequest) returns (Empty);
+  
+  // Métodos para pujas
+  rpc CreateBid(CreateBidRequest) returns (CreateBidResponse);
+  rpc ListBids(ListBidsRequest) returns (ListBidsResponse);
+  rpc GetHighestBid(GetHighestBidRequest) returns (GetHighestBidResponse); 
 }

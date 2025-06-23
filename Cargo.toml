@@ -1,13 +1,13 @@
 [package]
 name = "auction_ms"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-sea-orm = { version = "1.1.12", features = ["sqlx-postgres", "runtime-tokio-native-tls"] }
+sea-orm = { version = "1.1.12", features = ["sqlx-postgres","sqlx-sqlite", "runtime-tokio-native-tls"] }
 sea-orm-migration = "1.1.12"
 dotenvy = "0.15"
 uuid = {version = "1.17.0", features = ["v4"]}
@@ -19,6 +19,7 @@ validator_derive = "0.16"
 tonic = "0.11"
 prost = "0.12"
 prost-types = "0.12"
+log = "0.4.27"
 
 [build-dependencies]
 tonic-build = "0.11"

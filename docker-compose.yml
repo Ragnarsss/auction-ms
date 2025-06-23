@@ -20,6 +20,19 @@ services:
       - auction_database
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+  auction_ms:
+    build: .
+    depends_on:
+      - auction_database
+    environment:
+      DATABASE_URL: postgres://auction_user:auction_password@auction_database:5432/auction_db
+      GRPC_ADDRESS: "0.0.0.0:50052"
+      RUST_LOG: "info"
+    ports:
+      - "50052:50052"
+    restart: unless-stopped
+    networks:
+      - default
 
 volumes:
   auction_data:

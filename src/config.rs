@@ -1,7 +1,5 @@
 // Importa la función dotenv para cargar variables de entorno desde un archivo .env
 use dotenvy::dotenv;
-// Importa el módulo env para acceder a variables de entorno del sistema
-use std::env;
 
 // Define una función pública llamada init
 pub fn init() {
