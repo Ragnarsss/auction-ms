@@ -1,6 +1,7 @@
 # Guía de Migración y Despliegue - Auction Microservice
 
 ## Tabla de Contenidos
+
 - [Prerrequisitos](#prerrequisitos)
 - [Preparación del Entorno](#preparación-del-entorno)
 - [Migración de Base de Datos](#migración-de-base-de-datos)
@@ -14,6 +15,7 @@
 ## Prerrequisitos
 
 ### Software Requerido
+
 - **Go** >= 1.19
 - **PostgreSQL** >= 13
 - **Docker** >= 20.10
@@ -22,6 +24,7 @@
 - **Git**
 
 ### Go Dependencies
+
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
@@ -30,6 +33,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ## Preparación del Entorno
 
 ### 1. Clonar y Configurar el Proyecto
+
 ```bash
 # Clonar el repositorio
 git clone <repository-url>
@@ -43,7 +47,9 @@ protoc --go_out=. --go-grpc_out=. proto/auction.proto
 ```
 
 ### 2. Variables de Entorno
+
 Crear archivo `.env` en la raíz del proyecto:
+
 ```env
 # Base de datos
 DB_HOST=localhost
@@ -75,6 +81,7 @@ REDIS_PASSWORD=
 ### 1. Configuración de PostgreSQL
 
 #### Opción A: Instalación Local
+
 ```bash
 # Ubuntu/Debian
 sudo apt update
@@ -89,6 +96,7 @@ sudo systemctl enable postgresql
 ```
 
 #### Opción B: Docker
+
 ```bash
 docker run --name auction-postgres \
   -e POSTGRES_DB=auction_db \
@@ -99,6 +107,7 @@ docker run --name auction-postgres \
 ```
 
 ### 2. Crear Base de Datos y Usuario
+
 ```sql
 -- Conectar como superusuario
 sudo -u postgres psql
@@ -116,6 +125,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 
 ### 3. Schema de Base de Datos
+
 ```sql
 -- Tabla de subastas
 CREATE TABLE auctions (
@@ -170,6 +180,7 @@ CREATE TRIGGER update_auctions_updated_at BEFORE UPDATE
 ## Configuración de la Aplicación
 
 ### 1. Estructura de Directorios
+
 ```
 auction_ms/
 ├── cmd/
@@ -193,9 +204,11 @@ auction_ms/
 ```
 
 ### 2. Archivo Docker Compose
+
 Crear `docker-compose.yml`:
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -244,6 +257,7 @@ networks:
 ```
 
 ### 3. Dockerfile
+
 ```dockerfile
 FROM golang:1.19-alpine AS builder
 
@@ -269,6 +283,7 @@ CMD ["./auction-service"]
 ## Despliegue en Desarrollo
 
 ### 1. Usando Docker Compose
+
 ```bash
 # Construir y levantar servicios
 docker-compose up --build -d
@@ -281,6 +296,7 @@ docker-compose logs auction-service
 ```
 
 ### 2. Desarrollo Local
+
 ```bash
 # Levantar solo la base de datos
 docker-compose up postgres redis -d
@@ -290,7 +306,9 @@ go run cmd/server/main.go
 ```
 
 ### 3. Makefile para Comandos Comunes
+
 Crear `Makefile`:
+
 ```makefile
 .PHONY: build run test proto clean docker-build docker-run
 
@@ -328,6 +346,7 @@ db-migrate:
 ## Despliegue en Producción
 
 ### 1. Configuración de Servidor
+
 ```bash
 # Actualizar sistema
 sudo apt update && sudo apt upgrade -y
@@ -343,7 +362,9 @@ sudo chmod +x /usr/local/bin/docker-compose
 ```
 
 ### 2. Variables de Entorno de Producción
+
 Crear `.env.production`:
+
 ```env
 DB_HOST=production-db-host
 DB_PORT=5432
@@ -366,9 +387,11 @@ REDIS_PASSWORD=redis-production-password
 ```
 
 ### 3. Docker Compose para Producción
+
 Crear `docker-compose.prod.yml`:
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   auction-service:
@@ -410,7 +433,9 @@ networks:
 ```
 
 ### 4. Configuración de Nginx
+
 Crear `nginx.conf`:
+
 ```nginx
 events {
     worker_connections 1024;
@@ -448,6 +473,7 @@ http {
 ## Verificación y Testing
 
 ### 1. Health Check
+
 ```bash
 # Verificar que el servicio responda
 curl http://localhost:8080/health
@@ -457,6 +483,7 @@ grpcurl -plaintext localhost:50051 list
 ```
 
 ### 2. Tests de Integración
+
 ```bash
 # Ejecutar tests
 make test
@@ -466,6 +493,7 @@ ab -n 1000 -c 10 http://localhost:8080/health
 ```
 
 ### 3. Verificación de Base de Datos
+
 ```bash
 # Conectar a la base de datos
 docker-compose exec postgres psql -U auction_user -d auction_db
@@ -481,6 +509,7 @@ SELECT COUNT(*) FROM bids;
 ## Monitoreo y Logs
 
 ### 1. Configuración de Logs
+
 ```bash
 # Ver logs en tiempo real
 docker-compose logs -f auction-service
@@ -490,6 +519,7 @@ docker-compose logs auction-service | grep ERROR
 ```
 
 ### 2. Métricas Básicas
+
 ```bash
 # Uso de recursos
 docker stats
@@ -506,6 +536,7 @@ docker-compose exec postgres psql -U auction_user -d auction_db -c "SELECT count
 ### Problemas Comunes
 
 #### 1. Error de Conexión a Base de Datos
+
 ```bash
 # Verificar que PostgreSQL esté corriendo
 docker-compose ps postgres
@@ -518,6 +549,7 @@ docker-compose exec postgres psql -U auction_user -d auction_db
 ```
 
 #### 2. Puerto en Uso
+
 ```bash
 # Verificar qué proceso usa el puerto
 lsof -i :8080
@@ -529,6 +561,7 @@ GRPC_PORT=50052
 ```
 
 #### 3. Problemas de Permisos
+
 ```bash
 # Verificar permisos de archivos
 ls -la .env
@@ -538,6 +571,7 @@ sudo chown $USER:$USER .env
 ```
 
 #### 4. Memoria Insuficiente
+
 ```bash
 # Verificar uso de memoria
 free -h
@@ -570,6 +604,7 @@ docker-compose up -d
 ## Mantenimiento
 
 ### 1. Actualización de la Aplicación
+
 ```bash
 # Pull del código actualizado
 git pull origin main
@@ -580,7 +615,9 @@ docker-compose up -d auction-service
 ```
 
 ### 2. Backup Automatizado
+
 Crear script `backup.sh`:
+
 ```bash
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
@@ -588,7 +625,9 @@ docker-compose exec postgres pg_dump -U auction_user auction_db > backups/auctio
 ```
 
 ### 3. Monitoreo de Salud
+
 Crear script `health_check.sh`:
+
 ```bash
 #!/bin/bash
 curl -f http://localhost:8080/health || exit 1
@@ -599,6 +638,7 @@ curl -f http://localhost:8080/health || exit 1
 ## Contacto y Soporte
 
 Para problemas adicionales, consultar:
+
 - Logs de aplicación: `docker-compose logs auction-service`
 - Documentación de la API: `http://localhost:8080/docs`
 - Repositorio del proyecto: [GitHub URL]
