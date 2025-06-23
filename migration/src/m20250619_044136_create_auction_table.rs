@@ -16,7 +16,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Auction::ItemId).string().not_null())
                     .col(ColumnDef::new(Auction::Title).string().not_null())
                     .col(ColumnDef::new(Auction::Description).string().null())
-                    .col(ColumnDef::new(Auction::Category).string().not_null())
                     .col(ColumnDef::new(Auction::StartTime).date_time().not_null())
                     .col(ColumnDef::new(Auction::EndTime).date_time().not_null())
                     .col(ColumnDef::new(Auction::BasePrice).decimal().not_null())
@@ -40,6 +39,7 @@ impl MigrationTrait for Migration {
                                 "USD", "EUR", "CLP", "ARS", "BRL", "MXN"
                             ]))
                     )
+                    .col(ColumnDef::new(Auction::Category).string().not_null())
                     .to_owned(),
             )
             .await
@@ -60,7 +60,6 @@ enum Auction {
     ItemId,
     Title,
     Description,
-    Category,
     StartTime,
     EndTime,
     BasePrice,
@@ -68,4 +67,5 @@ enum Auction {
     HighestBid,
     Status,
     Currency,
+    Category,
 }

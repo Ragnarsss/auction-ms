@@ -11,7 +11,6 @@ pub struct Model {
     pub item_id: String,
     pub title: String,
     pub description: Option<String>,
-    pub category: String,
     pub start_time: DateTime,
     pub end_time: DateTime,
     pub base_price: Decimal,
@@ -19,6 +18,7 @@ pub struct Model {
     pub highest_bid: Option<Decimal>,
     pub status: String,
     pub currency: String,
+    pub category: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

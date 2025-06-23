@@ -104,7 +104,14 @@ impl AuctionService for MyAuctionService {
     ) -> Result<Response<CreateAuctionResponse>, Status> {
         log::info!("=== INICIANDO CREACIÓN DE SUBASTA ===");
         let req = request.into_inner();
-        log::info!("Datos recibidos: user_id={}, item_id={}, title={}, description={}, category={}, base_price={}, min_bid_increment={}, currency={}", 
+        
+        // Debug: Log the raw request structure
+        log::debug!("Raw request: {:?}", req);
+        log::debug!("Category field specifically: '{}'", req.category);
+        log::debug!("Category field length: {}", req.category.len());
+        log::debug!("Category field is_empty(): {}", req.category.is_empty());
+        
+        log::info!("Datos recibidos: user_id={}, item_id={}, title={}, description={}, category='{}', base_price={}, min_bid_increment={}, currency={}", 
             req.user_id, req.item_id, req.title, req.description, req.category, req.base_price, req.min_bid_increment, req.currency);
         
         // Validar fechas antes de crear la subasta
@@ -151,9 +158,18 @@ impl AuctionService for MyAuctionService {
 
         // Validar que category no esté vacía
         if req.category.is_empty() {
-            log::error!("category vacía");
+            log::error!("category vacía - valor recibido: '{}'", req.category);
+            log::error!("category bytes: {:?}", req.category.as_bytes());
             return Err(Status::invalid_argument("category no puede estar vacía"));
         }
+        
+        // También validar que no contenga solo espacios en blanco
+        if req.category.trim().is_empty() {
+            log::error!("category contiene solo espacios en blanco: '{}'", req.category);
+            return Err(Status::invalid_argument("category no puede contener solo espacios en blanco"));
+        }
+        
+        log::debug!("Category válida después de validación: '{}'", req.category);
         
         log::debug!("User ID válido (string): {}", req.user_id);
         log::debug!("Item ID válido (string): {}", req.item_id);
@@ -187,20 +203,19 @@ impl AuctionService for MyAuctionService {
             item_id: Set(req.item_id.clone()),
             title: Set(req.title.clone()),
             description: Set(Some(req.description.clone())),
-            category: Set(req.category.clone()), // Asegurar que se usa req.category, no el status
+            category: Set(req.category.trim().to_string()), // Usar trim por si hay espacios
             start_time: Set(start_time),
             end_time: Set(end_time),
             base_price: Set(base_price),
             min_bid_increment: Set(min_bid_increment),
             highest_bid: Set(Default::default()),
-            status: Set(auction_status.as_str().to_string()), // Usar la variable auction_status
+            status: Set(auction_status.as_str().to_string()),
             currency: Set(currency.as_str().to_string()),
         };
         
-        log::info!("Modelo de subasta creado - categoría: '{}', moneda: '{}', estado: '{}'", 
-            req.category, currency.as_str(), auction_status.as_str());
-        log::debug!("Verificando campos antes de insertar - category: '{}', status: '{}'", 
-            req.category, auction_status.as_str());
+        log::info!("Modelo creado - Intentando insertar en DB...");
+        log::debug!("Valores del modelo: id={}, user_id={}, category={}, status={}, currency={}", 
+            auction_id, req.user_id, req.category, auction_status.as_str(), currency.as_str());
             
         match auction.insert(&self.db).await {
             Ok(inserted) => {
@@ -217,8 +232,12 @@ impl AuctionService for MyAuctionService {
             },
             Err(e) => {
                 log::error!("❌ Error al insertar subasta en base de datos: {}", e);
-                log::error!("Detalles del error: {:?}", e);
-                Err(Status::internal(format!("DB error: {}", e)))
+                log::error!("Tipo de error: {:?}", e);
+                log::error!("Detalles completos del error: {:#?}", e);
+                
+                // Intentar obtener más detalles del error de base de datos
+                let error_msg = format!("Error de base de datos: {}. Verifique que la tabla 'auction' exista y tenga todas las columnas requeridas.", e);
+                Err(Status::internal(error_msg))
             }
         }
     }
@@ -829,7 +848,32 @@ CREATE TABLE bid (
         assert_eq!(auction.bids[0].amount, "130.00"); // La puja más reciente primero
     }
 
-
+    #[tokio::test]
+    async fn test_model_structure() {
+        use crate::models::auction::{ActiveModel, Entity};
+        use sea_orm::Set;
+        
+        let db = setup_test_db().await;
+        
+        let auction = ActiveModel {
+            id: Set(uuid::Uuid::new_v4()),
+            user_id: Set("test_user".to_string()),
+            item_id: Set("test_item".to_string()),
+            title: Set("Test Title".to_string()),
+            description: Set(Some("Test Description".to_string())),
+            category: Set("Electronics".to_string()),
+            start_time: Set(chrono::Utc::now().naive_utc()),
+            end_time: Set(chrono::Utc::now().naive_utc() + chrono::Duration::hours(1)),
+            base_price: Set(rust_decimal::Decimal::from(100)),
+            min_bid_increment: Set(rust_decimal::Decimal::from(10)),
+            highest_bid: Set(Some(rust_decimal::Decimal::ZERO)),
+            status: Set("pending".to_string()),
+            currency: Set("USD".to_string()),
+        };
+        
+        let result = auction.insert(&db).await;
+        assert!(result.is_ok(), "Failed to insert auction: {:?}", result.err());
+    }
 }
 
 // Función helper para validar que un string representa un número válido
@@ -844,5 +888,6 @@ fn validate_numeric_string(value: &str, field_name: &str) -> Result<rust_decimal
             Status::invalid_argument(format!("{} debe ser un número válido", field_name))
         })
 }
+
 
 
